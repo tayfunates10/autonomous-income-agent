@@ -4,13 +4,13 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 
 ## Project status
 
-**Overall completion: 35%** — R0/R1 complete; R2 planner, memory & evaluator is ready for CI validation.
+**Overall completion: 40%** — R0 through R2 complete; R3 opportunity discovery & scoring is next.
 
 | Release | Scope | Target | Status |
 |---|---|---:|---|
 | R0 | Foundation, policy model, approval gate, audit contract, CI | 10% | Complete |
 | R1 | Agent brain & task runtime | 25% | Complete |
-| R2 | Planner, memory & evaluator | 40% | In progress |
+| R2 | Planner, memory & evaluator | 40% | Complete |
 | R3 | Opportunity discovery & scoring | 55% | Planned |
 | R4 | Product/content/service engines | 70% | Planned |
 | R5 | Safe internet integrations | 82% | Planned |
@@ -67,8 +67,8 @@ Discover -> Evaluate -> Policy Check -> Plan -> Execute Allowed Work
 - [x] Deterministic weighted evaluator with hard minimums
 - [x] Tests for planner, memory and evaluator failure/success paths
 - [x] Decision-system documentation
-- [ ] CI green
-- [ ] Merge to main
+- [x] CI green
+- [x] Ready to merge
 
 ## Engineering workflow
 
