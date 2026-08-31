@@ -4,13 +4,13 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 
 ## Project status
 
-**Overall completion: 25%** — R0 and R1 complete; R2 planner, memory & evaluator is next.
+**Overall completion: 35%** — R0/R1 complete; R2 planner, memory & evaluator is ready for CI validation.
 
 | Release | Scope | Target | Status |
 |---|---|---:|---|
 | R0 | Foundation, policy model, approval gate, audit contract, CI | 10% | Complete |
 | R1 | Agent brain & task runtime | 25% | Complete |
-| R2 | Planner, memory & evaluator | 40% | Planned |
+| R2 | Planner, memory & evaluator | 40% | In progress |
 | R3 | Opportunity discovery & scoring | 55% | Planned |
 | R4 | Product/content/service engines | 70% | Planned |
 | R5 | Safe internet integrations | 82% | Planned |
@@ -56,7 +56,19 @@ Discover -> Evaluate -> Policy Check -> Plan -> Execute Allowed Work
 - [x] Runtime outcomes appended to tamper-evident audit trail
 - [x] Unit tests for execution, deny, approval, retry, replay and cancellation
 - [x] CI green
-- [x] Ready to merge
+- [x] Merged to main
+
+## R2 acceptance criteria
+
+- [x] Bounded DAG planner with unique action/step IDs
+- [x] Dependency validation, cycle detection and deterministic ordering
+- [x] Policy annotation before execution
+- [x] Provenance-aware memory with confidence, tags and expiry
+- [x] Deterministic weighted evaluator with hard minimums
+- [x] Tests for planner, memory and evaluator failure/success paths
+- [x] Decision-system documentation
+- [ ] CI green
+- [ ] Merge to main
 
 ## Engineering workflow
 
