@@ -4,12 +4,12 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 
 ## Project status
 
-**Overall completion: 20%** — R0 complete; R1 runtime implementation is ready for CI validation.
+**Overall completion: 25%** — R0 and R1 complete; R2 planner, memory & evaluator is next.
 
 | Release | Scope | Target | Status |
 |---|---|---:|---|
 | R0 | Foundation, policy model, approval gate, audit contract, CI | 10% | Complete |
-| R1 | Agent brain & task runtime | 25% | In progress |
+| R1 | Agent brain & task runtime | 25% | Complete |
 | R2 | Planner, memory & evaluator | 40% | Planned |
 | R3 | Opportunity discovery & scoring | 55% | Planned |
 | R4 | Product/content/service engines | 70% | Planned |
@@ -55,8 +55,8 @@ Discover -> Evaluate -> Policy Check -> Plan -> Execute Allowed Work
 - [x] Cancellation before/during execution
 - [x] Runtime outcomes appended to tamper-evident audit trail
 - [x] Unit tests for execution, deny, approval, retry, replay and cancellation
-- [ ] CI green
-- [ ] Merge to main
+- [x] CI green
+- [x] Ready to merge
 
 ## Engineering workflow
 
