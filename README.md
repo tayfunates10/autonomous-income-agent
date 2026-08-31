@@ -4,11 +4,11 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 
 ## Project status
 
-**Overall completion: 4%** — R0 foundation implementation is in progress.
+**Overall completion: 10%** — R0 foundation complete; R1 agent brain & task runtime is next.
 
 | Release | Scope | Target | Status |
 |---|---|---:|---|
-| R0 | Foundation, policy model, approval gate, audit contract, CI | 10% | In progress |
+| R0 | Foundation, policy model, approval gate, audit contract, CI | 10% | Complete |
 | R1 | Agent brain & task runtime | 25% | Planned |
 | R2 | Planner, memory & evaluator | 40% | Planned |
 | R3 | Opportunity discovery & scoring | 55% | Planned |
@@ -37,13 +37,13 @@ Discover -> Evaluate -> Policy Check -> Plan -> Execute Allowed Work
 
 ## R0 acceptance criteria
 
-- [ ] Typed capability model
-- [ ] Default-deny policy engine
-- [ ] Explicit owner approval gate for high-impact actions
-- [ ] Tamper-evident audit event contract
-- [ ] Unit tests for allow / deny / approval-required paths
-- [ ] CI running tests and type checks
-- [ ] Security and architecture documentation
+- [x] Typed capability model
+- [x] Default-deny policy engine
+- [x] Explicit owner approval gate for high-impact actions
+- [x] Tamper-evident audit event contract
+- [x] Unit tests for allow / deny / approval-required paths
+- [x] CI running tests and type checks
+- [x] Security and architecture documentation
 
 ## Engineering workflow
 
