@@ -4,14 +4,14 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 
 ## Project status
 
-**Overall completion: 40%** — R0 through R2 complete; R3 opportunity discovery & scoring is next.
+**Overall completion: 55%** — R0-R3 complete; R4 product/content/service/revenue engines is next.
 
 | Release | Scope | Target | Status |
 |---|---|---:|---|
 | R0 | Foundation, policy model, approval gate, audit contract, CI | 10% | Complete |
 | R1 | Agent brain & task runtime | 25% | Complete |
 | R2 | Planner, memory & evaluator | 40% | Complete |
-| R3 | Opportunity discovery & scoring | 55% | Planned |
+| R3 | Opportunity discovery & scoring | 55% | Complete |
 | R4 | Product/content/service engines | 70% | Planned |
 | R5 | Safe internet integrations | 82% | Planned |
 | R6 | Security, identity & owner authorization hardening | 90% | Planned |
@@ -35,48 +35,42 @@ Discover -> Evaluate -> Policy Check -> Plan -> Execute Allowed Work
        -> Approval Gate (when required) -> Verify -> Ledger -> Learn
 ```
 
-## R0 acceptance criteria
+## Completed releases
 
-- [x] Typed capability model
-- [x] Default-deny policy engine
-- [x] Explicit owner approval gate for high-impact actions
-- [x] Tamper-evident audit event contract
-- [x] Unit tests for allow / deny / approval-required paths
-- [x] CI running tests and type checks
-- [x] Security and architecture documentation
+### R0 — Foundation
+- [x] Typed capability model and default-deny policy engine
+- [x] Scoped owner approval gate
+- [x] Tamper-evident audit contract
+- [x] Security/architecture docs and CI
 
-## R1 acceptance criteria
+### R1 — Agent runtime
+- [x] Typed task/result state model and executor registry
+- [x] Policy/approval enforcement before execution
+- [x] Replay protection, retries and cancellation
+- [x] Runtime audit integration and tests
 
-- [x] Typed task and task-result state model
-- [x] Capability-scoped executor registry
-- [x] Policy/approval gate integrated into every runtime execution
-- [x] Replay protection for completed/in-flight action IDs
-- [x] Bounded transient retry behavior
-- [x] Cancellation before/during execution
-- [x] Runtime outcomes appended to tamper-evident audit trail
-- [x] Unit tests for execution, deny, approval, retry, replay and cancellation
-- [x] CI green
-- [x] Merged to main
-
-## R2 acceptance criteria
-
-- [x] Bounded DAG planner with unique action/step IDs
-- [x] Dependency validation, cycle detection and deterministic ordering
-- [x] Policy annotation before execution
-- [x] Provenance-aware memory with confidence, tags and expiry
+### R2 — Planner, memory, evaluator
+- [x] Bounded DAG planner, dependency validation and policy annotation
+- [x] Provenance-aware memory with confidence/tags/expiry
 - [x] Deterministic weighted evaluator with hard minimums
-- [x] Tests for planner, memory and evaluator failure/success paths
-- [x] Decision-system documentation
+- [x] Planner/memory/evaluator tests and docs
+
+### R3 — Opportunity engine
+- [x] Evidence-backed opportunity model
+- [x] Risk-adjusted scoring and hard risk ceilings
+- [x] Pursue / validate / discard decisions
+- [x] Provenance-preserving memory ingestion
+- [x] Bounded validation-plan generation
+- [x] Opportunity tests and documentation
 - [x] CI green
-- [x] Ready to merge
 
 ## Engineering workflow
 
-- Work is developed on feature branches and reviewed through pull requests.
+- Feature branch -> pull request -> CI -> merge to `main`.
 - CI must be green before merge.
-- README progress is updated as each release milestone is completed.
-- Safety/policy gates are tested as product behavior, not treated as documentation only.
-- Waiting is used only when an external asynchronous system (for example CI) actually needs time; otherwise development continues immediately.
+- README progress is updated as milestones complete.
+- Policy/approval gates are executable product behavior, not documentation-only rules.
+- External asynchronous waits use timed follow-up checks; development otherwise continues immediately.
 
 ## License
 
