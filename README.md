@@ -4,14 +4,14 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 
 ## Project status
 
-**Overall completion: 40%** — R0 through R2 complete; R3 opportunity discovery & scoring is next.
+**Overall completion: 50%** — R0-R2 complete; R3 opportunity engine is ready for CI validation.
 
 | Release | Scope | Target | Status |
 |---|---|---:|---|
 | R0 | Foundation, policy model, approval gate, audit contract, CI | 10% | Complete |
 | R1 | Agent brain & task runtime | 25% | Complete |
 | R2 | Planner, memory & evaluator | 40% | Complete |
-| R3 | Opportunity discovery & scoring | 55% | Planned |
+| R3 | Opportunity discovery & scoring | 55% | In progress |
 | R4 | Product/content/service engines | 70% | Planned |
 | R5 | Safe internet integrations | 82% | Planned |
 | R6 | Security, identity & owner authorization hardening | 90% | Planned |
@@ -68,7 +68,20 @@ Discover -> Evaluate -> Policy Check -> Plan -> Execute Allowed Work
 - [x] Tests for planner, memory and evaluator failure/success paths
 - [x] Decision-system documentation
 - [x] CI green
-- [x] Ready to merge
+- [x] Merged to main
+
+## R3 acceptance criteria
+
+- [x] Evidence-backed opportunity model
+- [x] Risk-adjusted scoring with explicit hard risk ceilings
+- [x] Evidence confidence/source diversity quality scoring
+- [x] Pursue / validate / discard decisions
+- [x] Provenance-preserving memory ingestion
+- [x] Bounded demand/pricing/competition validation plan generation
+- [x] Unit tests for strong, unsupported and high-risk opportunities
+- [x] Opportunity engine documentation
+- [ ] CI green
+- [ ] Merge to main
 
 ## Engineering workflow
 
