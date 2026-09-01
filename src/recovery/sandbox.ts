@@ -24,10 +24,18 @@ export interface RecoveryCheckpoint {
 }
 
 function stable(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (value === null) return "null";
+  if (typeof value === "string" || typeof value === "boolean") return JSON.stringify(value);
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error("Sandbox values must contain only finite numbers.");
+    return JSON.stringify(value);
+  }
   if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
-  const record = value as Record<string, unknown>;
-  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${stable(record[key])}`).join(",")}}`;
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${stable(record[key])}`).join(",")}}`;
+  }
+  throw new Error(`Unsupported sandbox value type: ${typeof value}.`);
 }
 
 function digest(value: unknown): string {
@@ -40,9 +48,15 @@ export class DeterministicSandbox {
 
   execute(step: SandboxStep, executor: (input: unknown) => unknown): SandboxReceipt {
     if (step.stepId.trim().length === 0) throw new Error("stepId cannot be empty.");
-    if (this.#completed.has(step.stepId)) return this.#completed.get(step.stepId)!;
-
     const inputHash = digest(step.input);
+    const completed = this.#completed.get(step.stepId);
+    if (completed) {
+      if (completed.effect !== step.effect || completed.inputHash !== inputHash) {
+        throw new Error(`Idempotency conflict for completed step ${step.stepId}.`);
+      }
+      return { ...completed };
+    }
+
     const output = executor(structuredClone(step.input));
     const receipt: SandboxReceipt = {
       stepId: step.stepId,
@@ -53,28 +67,44 @@ export class DeterministicSandbox {
     };
     this.#receipts.push(receipt);
     this.#completed.set(step.stepId, receipt);
-    return receipt;
+    return { ...receipt };
   }
 
   checkpoint(runId: string, createdAt = new Date().toISOString()): RecoveryCheckpoint {
     if (runId.trim().length === 0) throw new Error("runId cannot be empty.");
+    if (!Number.isFinite(Date.parse(createdAt))) throw new Error("Checkpoint createdAt must be a valid timestamp.");
     const receipts = this.#receipts.map((receipt) => ({ ...receipt }));
     return {
       runId,
       createdAt,
       receipts,
-      chainHash: digest({ runId, receipts }),
+      chainHash: digest({ runId, createdAt, receipts }),
     };
   }
 
   restore(checkpoint: RecoveryCheckpoint): void {
-    const expected = digest({ runId: checkpoint.runId, receipts: checkpoint.receipts });
+    if (checkpoint.runId.trim().length === 0) throw new Error("Recovery checkpoint runId cannot be empty.");
+    if (!Number.isFinite(Date.parse(checkpoint.createdAt))) throw new Error("Recovery checkpoint timestamp is invalid.");
+    const expected = digest({ runId: checkpoint.runId, createdAt: checkpoint.createdAt, receipts: checkpoint.receipts });
     if (expected !== checkpoint.chainHash) throw new Error("Recovery checkpoint integrity verification failed.");
+
+    const seen = new Set<string>();
+    for (const receipt of checkpoint.receipts) {
+      if (receipt.stepId.trim().length === 0) throw new Error("Recovery checkpoint contains an empty stepId.");
+      if (seen.has(receipt.stepId)) throw new Error("Recovery checkpoint contains duplicate step IDs.");
+      if (!/^[a-f0-9]{64}$/.test(receipt.inputHash) || !/^[a-f0-9]{64}$/.test(receipt.outputHash)) {
+        throw new Error("Recovery checkpoint contains an invalid receipt hash.");
+      }
+      if (receipt.status !== "completed") throw new Error("Recovery checkpoint contains an unsupported receipt status.");
+      seen.add(receipt.stepId);
+    }
+
     this.#receipts.length = 0;
     this.#completed.clear();
     for (const receipt of checkpoint.receipts) {
-      this.#receipts.push({ ...receipt });
-      this.#completed.set(receipt.stepId, { ...receipt });
+      const copy = { ...receipt };
+      this.#receipts.push(copy);
+      this.#completed.set(receipt.stepId, copy);
     }
   }
 
