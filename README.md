@@ -4,7 +4,7 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 
 ## Project status
 
-**Overall completion: 90%** — R0-R6 complete; R7 sandbox, end-to-end and recovery testing is next.
+**Overall completion: 96%** — R0-R7 complete; R8 production readiness is next.
 
 | Release | Scope | Target | Status |
 |---|---|---:|---|
@@ -15,7 +15,7 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 | R4 | Product/content/service engines | 70% | Complete |
 | R5 | Safe internet integrations | 82% | Complete |
 | R6 | Security, identity & owner authorization hardening | 90% | Complete |
-| R7 | Sandbox/e2e/recovery testing | 96% | Planned |
+| R7 | Sandbox/e2e/recovery testing | 96% | Complete |
 | R8 | Production readiness | 100% | Planned |
 
 ## Non-negotiable operating rules
@@ -89,6 +89,14 @@ Discover -> Evaluate -> Policy Check -> Plan -> Execute Allowed Work
 - [x] Bounded spend reservation guard for autonomous within-budget actions
 - [x] Explicit AI representative identity profile that cannot claim to be a human
 - [x] Security negative tests for wrong scope, expiry, replay, overspend and human impersonation
+
+### R7 — Sandbox, end-to-end and recovery testing
+- [x] Deterministic sandbox receipts for effectful execution
+- [x] Stable SHA-256 input/output hashing for replay evidence
+- [x] Integrity-protected recovery checkpoints
+- [x] Restart restore without duplicate side-effect execution
+- [x] Tamper rejection for recovery journals
+- [x] Determinism tests for equivalent structured inputs
 
 ## Engineering workflow
 
