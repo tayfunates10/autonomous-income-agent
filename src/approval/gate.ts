@@ -1,18 +1,16 @@
 import type { Capability } from "../policy/capabilities.js";
 import { evaluatePolicy, type PolicyContext, type PolicyResult } from "../policy/engine.js";
+import {
+  OwnerAuthorizationVerifier,
+  type SignedOwnerApproval,
+} from "../security/owner-authorization.js";
 
-export interface OwnerApprovalGrant {
-  approvalId: string;
-  capability: Capability;
-  actionId: string;
-  approvedBy: "owner";
-  approvedAt: string;
-  expiresAt: string;
-}
+export type OwnerApprovalGrant = SignedOwnerApproval;
 
 export interface AuthorizationRequest extends Omit<PolicyContext, "ownerApproved"> {
   actionId: string;
   approval?: OwnerApprovalGrant;
+  ownerAuthorizationVerifier?: OwnerAuthorizationVerifier;
   now?: Date;
 }
 
@@ -24,23 +22,27 @@ function isValidApproval(
   capability: Capability,
   actionId: string,
   approval: OwnerApprovalGrant | undefined,
+  verifier: OwnerAuthorizationVerifier | undefined,
   now: Date,
 ): approval is OwnerApprovalGrant {
-  if (!approval) return false;
-  if (approval.approvedBy !== "owner") return false;
-  if (approval.capability !== capability) return false;
-  if (approval.actionId !== actionId) return false;
+  if (!approval || !verifier) return false;
 
-  const approvedAt = Date.parse(approval.approvedAt);
-  const expiresAt = Date.parse(approval.expiresAt);
-  const current = now.getTime();
-
-  return Number.isFinite(approvedAt) && Number.isFinite(expiresAt) && approvedAt <= current && current < expiresAt;
+  try {
+    return verifier.verify(approval, { capability, actionId }, now);
+  } catch {
+    return false;
+  }
 }
 
 export function authorizeExecution(request: AuthorizationRequest): AuthorizationResult {
   const now = request.now ?? new Date();
-  const validApproval = isValidApproval(request.capability, request.actionId, request.approval, now);
+  const validApproval = isValidApproval(
+    request.capability,
+    request.actionId,
+    request.approval,
+    request.ownerAuthorizationVerifier,
+    now,
+  );
 
   const policy = evaluatePolicy({
     capability: request.capability,
@@ -50,7 +52,7 @@ export function authorizeExecution(request: AuthorizationRequest): Authorization
   });
 
   if (policy.decision === "allow" && validApproval && request.approval) {
-    return { ...policy, approvalId: request.approval.approvalId };
+    return { ...policy, approvalId: request.approval.payload.approvalId };
   }
 
   return policy;
