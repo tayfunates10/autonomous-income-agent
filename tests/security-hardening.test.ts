@@ -57,6 +57,24 @@ test("signed owner approval verifies scope, signature and one-time nonce", () =>
   }));
 });
 
+test("owner key registry accepts public keys directly and derives public keys from private keys", () => {
+  const { privateKey } = generateKeyPairSync("ed25519");
+  const keys = new OwnerPublicKeyRegistry();
+  keys.register("owner-key-private-source", privateKey);
+  const signed = signOwnerApproval({
+    ...approvalFixture(),
+    approvalId: "approval-private-source",
+    nonce: "nonce-private-source-0001",
+  }, "owner-key-private-source", privateKey);
+
+  assert.doesNotThrow(() => verifyOwnerApproval(signed, keys, new NonceStore(), {
+    actionId: "contract-42",
+    capability: "legal.sign_contract",
+    agentId: "agent-main",
+    now: new Date("2026-09-01T08:30:00.000Z"),
+  }));
+});
+
 test("signed approval rejects tampering and scope mismatch", () => {
   const { publicKey, privateKey } = generateKeyPairSync("ed25519");
   const keys = new OwnerPublicKeyRegistry();
