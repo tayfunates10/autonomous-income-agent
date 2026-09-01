@@ -4,7 +4,7 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 
 ## Project status
 
-**Overall completion: 55%** — R0-R3 complete; R4 product/content/service/revenue engines is next.
+**Overall completion: 70%** — R0-R4 complete; R5 safe internet integrations is next.
 
 | Release | Scope | Target | Status |
 |---|---|---:|---|
@@ -12,7 +12,7 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 | R1 | Agent brain & task runtime | 25% | Complete |
 | R2 | Planner, memory & evaluator | 40% | Complete |
 | R3 | Opportunity discovery & scoring | 55% | Complete |
-| R4 | Product/content/service engines | 70% | Planned |
+| R4 | Product/content/service/revenue engines | 70% | Complete |
 | R5 | Safe internet integrations | 82% | Planned |
 | R6 | Security, identity & owner authorization hardening | 90% | Planned |
 | R7 | Sandbox/e2e/recovery testing | 96% | Planned |
@@ -63,6 +63,14 @@ Discover -> Evaluate -> Policy Check -> Plan -> Execute Allowed Work
 - [x] Bounded validation-plan generation
 - [x] Opportunity tests and documentation
 - [x] CI green
+
+### R4 — Business engines
+- [x] Product blueprints only from pursued, evidence-backed opportunities
+- [x] Evidence-grounded content drafting with unavailable-evidence rejection
+- [x] Service offer/delivery planning with contract step behind owner approval
+- [x] Multi-currency revenue/cost/refund ledger
+- [x] Exact integer net-profit allocation with owner/operations/reinvestment accounting shares
+- [x] Duplicate/invalid ledger and allocation-policy validation tests
 
 ## Engineering workflow
 
