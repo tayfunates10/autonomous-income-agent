@@ -1,4 +1,4 @@
-import { createPublicKey, sign as cryptoSign, verify as cryptoVerify, type KeyLike, type KeyObject } from "node:crypto";
+import { createPublicKey, KeyObject, sign as cryptoSign, verify as cryptoVerify, type KeyLike } from "node:crypto";
 import type { OwnerApprovalGrant } from "../approval/gate.js";
 import type { Capability } from "../policy/capabilities.js";
 import { NonceStore } from "./nonce-store.js";
@@ -37,9 +37,10 @@ function canonicalPayload(payload: SignedApprovalPayload): string {
 export class OwnerPublicKeyRegistry {
   readonly #keys = new Map<string, KeyObject>();
 
-  register(keyId: string, publicKey: KeyLike): void {
+  register(keyId: string, key: KeyLike | KeyObject): void {
     if (keyId.trim().length === 0) throw new Error("keyId cannot be empty.");
-    this.#keys.set(keyId, createPublicKey(publicKey));
+    const publicKey = key instanceof KeyObject && key.type === "public" ? key : createPublicKey(key);
+    this.#keys.set(keyId, publicKey);
   }
 
   get(keyId: string): KeyObject | undefined {
