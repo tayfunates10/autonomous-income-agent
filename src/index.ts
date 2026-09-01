@@ -24,3 +24,4 @@ export * from "./security/nonce-store.js";
 export * from "./security/operational-guard.js";
 export * from "./security/secrets.js";
 export * from "./security/signed-approval.js";
+export * from "./testing/sandbox-transport.js";
