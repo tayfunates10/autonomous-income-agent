@@ -4,7 +4,7 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 
 ## Project status
 
-**Overall completion: 100% candidate** — R0-R8 implementation and acceptance work complete on the R8 branch. Final completion is only canonical after this documentation commit passes exact-head CI and PR #11 is merged to `main`.
+**Overall completion: 100%** — R0-R8 are merged to `main`; the production-readiness acceptance gate passed on the exact R8 head before merge.
 
 | Release | Scope | Target | Status |
 |---|---|---:|---|
@@ -16,7 +16,7 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 | R5 | Safe internet integrations | 82% | Complete |
 | R6 | Security, identity & owner authorization hardening | 90% | Complete |
 | R7 | Sandbox/e2e/recovery testing | 96% | Complete |
-| R8 | Production readiness | 100% | Complete pending final exact-head CI + merge |
+| R8 | Production readiness | 100% | Complete |
 
 ## Non-negotiable operating rules
 
@@ -101,19 +101,22 @@ Discover -> Evaluate -> Policy Check -> Plan -> Execute Allowed Work
 ### R8 — Production readiness
 - [x] Real Node HTTPS transport with TLS hostname verification
 - [x] DNS resolution pinned to validated public addresses
-- [x] Private/reserved/loopback/link-local SSRF defenses
+- [x] Private/reserved/loopback/link-local/site-local SSRF defenses
+- [x] Exact-origin egress allowlist enforcement
 - [x] Redirect denial to prevent validation bypass
 - [x] Exact-origin credential bindings resolved by secret references only
 - [x] Production configuration rejects owner private signing key presence
+- [x] Readiness parses and requires a valid Ed25519 owner public key
+- [x] DNS resolution is bounded by the configured request timeout
 - [x] Fail-closed readiness and non-sensitive health contracts
 - [x] Durable atomic recovery checkpoint persistence
 - [x] Build emission included in the validation gate
 - [x] `.env.example` contains references/placeholders only, no embedded credentials
 - [x] Production operations runbook
 - [x] Production transport/config/recovery tests
-- [x] Pre-final R8 exact-head CI success: run `33497593006` on commit `88af430e84f6fc5d667bdb70e70a5f88e206eb3c`
-- [ ] Final documentation exact-head CI green
-- [ ] PR #11 merged to `main`
+- [x] Final R8 exact-head CI success: run `33507239528` on commit `0c3cb25d25da12d33e55adef63e8c383d7eeb898`
+- [x] Four production review findings closed before merge: egress allowlist, IPv6 site-local blocking, Ed25519 readiness validation, DNS timeout coverage
+- [x] PR #11 merged to `main`: `a05eb70bccf0784c092e8cee47ecf86ecdde2979`
 
 ## Engineering workflow
 
