@@ -4,7 +4,7 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 
 ## Project status
 
-**Overall completion: 82%** — R0-R5 complete; R6 security, identity and owner authorization hardening is next.
+**Overall completion: 90%** — R0-R6 complete; R7 sandbox/e2e/recovery testing is next.
 
 | Release | Scope | Target | Status |
 |---|---|---:|---|
@@ -14,7 +14,7 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 | R3 | Opportunity discovery & scoring | 55% | Complete |
 | R4 | Product/content/service/revenue engines | 70% | Complete |
 | R5 | Safe internet integrations | 82% | Complete |
-| R6 | Security, identity & owner authorization hardening | 90% | Planned |
+| R6 | Security, identity & owner authorization hardening | 90% | Complete |
 | R7 | Sandbox/e2e/recovery testing | 96% | Planned |
 | R8 | Production readiness | 100% | Planned |
 
@@ -56,30 +56,28 @@ Discover -> Evaluate -> Policy Check -> Plan -> Execute Allowed Work
 - [x] Planner/memory/evaluator tests and docs
 
 ### R3 — Opportunity engine
-- [x] Evidence-backed opportunity model
-- [x] Risk-adjusted scoring and hard risk ceilings
-- [x] Pursue / validate / discard decisions
-- [x] Provenance-preserving memory ingestion
-- [x] Bounded validation-plan generation
-- [x] Opportunity tests and documentation
-- [x] CI green
+- [x] Evidence-backed opportunity model and risk-adjusted scoring
+- [x] Pursue / validate / discard decisions with hard risk ceilings
+- [x] Provenance-preserving ingestion and bounded validation plans
 
 ### R4 — Business engines
-- [x] Product blueprints only from pursued, evidence-backed opportunities
-- [x] Evidence-grounded content drafting with unavailable-evidence rejection
-- [x] Service offer/delivery planning with contract step behind owner approval
-- [x] Multi-currency revenue/cost/refund ledger
-- [x] Exact integer net-profit allocation with owner/operations/reinvestment accounting shares
-- [x] Duplicate/invalid ledger and allocation-policy validation tests
+- [x] Product/content/service engines with evidence and owner-gated legal steps
+- [x] Multi-currency revenue/cost/refund ledger and exact profit allocations
 
 ### R5 — Safe internet integrations
-- [x] HTTPS-only public-web gateway with credential-in-URL rejection
-- [x] Loopback/private/link-local target blocking for SSRF resistance
-- [x] Authorized channel registry with exact-origin capability scoping
-- [x] Read-only public research and guarded publishing/customer/commerce writes
-- [x] Financial and identity actions excluded from generic internet gateway
-- [x] Request/response size budgets and in-memory rate limiting
-- [x] Negative tests for unauthorized origins, methods, private targets and gated capabilities
+- [x] HTTPS-only, SSRF-resistant public-web gateway
+- [x] Exact-origin authorized channels for publishing/customer/commerce writes
+- [x] Financial/identity actions excluded from generic internet gateway
+- [x] Payload and request-rate budgets with negative tests
+
+### R6 — Security hardening
+- [x] Ed25519-verifiable owner approvals scoped to action/capability/agent
+- [x] One-time nonce replay protection and approval expiry validation
+- [x] Integrated kill-switch security control plane
+- [x] Time/currency/amount-scoped operational budget envelopes
+- [x] Secret-reference/provider boundary with no source-controlled credentials
+- [x] Transparent `authorized_ai_representative` identity profile
+- [x] Tampering, replay, wrong-agent, budget and kill-switch tests
 
 ## Engineering workflow
 
