@@ -1,11 +1,28 @@
 import { authorizeExecution } from "../approval/gate.js";
-import { appendAuditEvent, type AuditEvent } from "../audit/hash-chain.js";
+import { appendAuditEvent, verifyAuditChain, type AuditEvent } from "../audit/hash-chain.js";
 import type { PolicyResult } from "../policy/engine.js";
 import { ExecutorRegistry, TransientExecutionError } from "./executor-registry.js";
 import type { AgentTask, TaskRunOptions, TaskRunResult } from "./task.js";
 
+export interface RuntimeSnapshot {
+  version: 1;
+  completedActionIds: readonly string[];
+  audit: readonly AuditEvent[];
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function validateSnapshot(snapshot: RuntimeSnapshot): void {
+  if (snapshot.version !== 1) throw new Error("Unsupported runtime snapshot version.");
+  if (!verifyAuditChain(snapshot.audit)) throw new Error("Runtime snapshot audit chain is invalid.");
+  const ids = new Set<string>();
+  for (const actionId of snapshot.completedActionIds) {
+    if (actionId.trim().length === 0) throw new Error("Runtime snapshot contains an empty actionId.");
+    if (ids.has(actionId)) throw new Error("Runtime snapshot contains duplicate completed action IDs.");
+    ids.add(actionId);
+  }
 }
 
 export class AgentRuntime {
@@ -14,12 +31,25 @@ export class AgentRuntime {
   readonly #completedActionIds = new Set<string>();
   readonly #inFlightActionIds = new Set<string>();
 
-  constructor(registry: ExecutorRegistry) {
+  constructor(registry: ExecutorRegistry, snapshot?: RuntimeSnapshot) {
     this.#registry = registry;
+    if (snapshot) {
+      validateSnapshot(snapshot);
+      this.#audit.push(...snapshot.audit.map((event) => ({ ...event })));
+      for (const actionId of snapshot.completedActionIds) this.#completedActionIds.add(actionId);
+    }
   }
 
   getAuditTrail(): readonly AuditEvent[] {
-    return [...this.#audit];
+    return this.#audit.map((event) => ({ ...event }));
+  }
+
+  createSnapshot(): RuntimeSnapshot {
+    return {
+      version: 1,
+      completedActionIds: [...this.#completedActionIds].sort(),
+      audit: this.getAuditTrail(),
+    };
   }
 
   #record(task: AgentTask, policy: PolicyResult, reason: string, approvalId?: string): void {
