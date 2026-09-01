@@ -81,7 +81,7 @@ export class IntegrationGateway {
   async execute(request: IntegrationRequest, now = Date.now()): Promise<IntegrationTransportResponse> {
     if (request.actionId.trim().length === 0) throw new Error("actionId cannot be empty.");
     const target = validatePublicHttpsUrl(request.url);
-    this.#enforceRequestShape(request, target);
+    this.#enforceRequestShape(request);
     this.#consumeRateBudget(now);
 
     const channelAuthorized = WRITE_CAPABILITIES.has(request.capability)
@@ -92,7 +92,11 @@ export class IntegrationGateway {
       throw new Error("Write integration target is not authorized for this capability.");
     }
 
-    const policy = evaluatePolicy({ capability: request.capability, channelAuthorized });
+    const policy = evaluatePolicy(
+      channelAuthorized === undefined
+        ? { capability: request.capability }
+        : { capability: request.capability, channelAuthorized },
+    );
     if (policy.decision !== "allow") {
       throw new Error(`Integration denied by policy: ${policy.reason}`);
     }
@@ -112,10 +116,12 @@ export class IntegrationGateway {
       throw new Error("Integration response exceeds configured size limit.");
     }
 
-    return { ...response, headers: response.headers ? { ...response.headers } : undefined };
+    return response.headers
+      ? { status: response.status, body: response.body, headers: { ...response.headers } }
+      : { status: response.status, body: response.body };
   }
 
-  #enforceRequestShape(request: IntegrationRequest, target: URL): void {
+  #enforceRequestShape(request: IntegrationRequest): void {
     if (request.body !== undefined && Buffer.byteLength(request.body, "utf8") > this.#maxRequestBodyBytes) {
       throw new Error("Integration request body exceeds configured size limit.");
     }
