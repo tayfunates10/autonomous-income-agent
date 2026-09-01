@@ -30,10 +30,19 @@ function stable(value: unknown): string {
     if (!Number.isFinite(value)) throw new Error("Sandbox values must contain only finite numbers.");
     return JSON.stringify(value);
   }
+  if (value instanceof Date) {
+    if (!Number.isFinite(value.getTime())) throw new Error("Sandbox Date values must be valid.");
+    return `{"$date":${JSON.stringify(value.toISOString())}}`;
+  }
   if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
   if (typeof value === "object") {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new Error("Unsupported sandbox object type; only plain objects, arrays and Date are allowed.");
+    }
     const record = value as Record<string, unknown>;
-    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${stable(record[key])}`).join(",")}}`;
+    const keys = Object.keys(record).filter((key) => record[key] !== undefined).sort();
+    return `{${keys.map((key) => `${JSON.stringify(key)}:${stable(record[key])}`).join(",")}}`;
   }
   throw new Error(`Unsupported sandbox value type: ${typeof value}.`);
 }

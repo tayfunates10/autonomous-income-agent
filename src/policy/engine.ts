@@ -49,6 +49,9 @@ export function evaluatePolicy(context: PolicyContext): PolicyResult {
   }
 
   if (capability === "finance.spend_within_budget" && context.withinBudget !== true) {
+    if (context.ownerApproved === true) {
+      return { decision: "allow", reason: "Owner approved an over-budget spend." };
+    }
     return { decision: "require_owner_approval", reason: "Spend exceeds or lacks an approved budget envelope." };
   }
 

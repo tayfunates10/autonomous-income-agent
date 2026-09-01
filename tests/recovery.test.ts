@@ -41,6 +41,36 @@ test("sandbox rejects reused stepId when input or effect changes", () => {
   ), /idempotency conflict/i);
 });
 
+test("Date values have type-aware hashes and changed dates trigger idempotency conflict", () => {
+  const sandbox = new DeterministicSandbox();
+  const first = sandbox.execute(
+    { stepId: "settle", effect: "network", input: { settleAt: new Date("2026-09-01T00:00:00.000Z") } },
+    (input) => ({ ok: true, input }),
+  );
+  const plain = new DeterministicSandbox().execute(
+    { stepId: "plain", effect: "none", input: { settleAt: {} } },
+    (input) => input,
+  );
+
+  assert.notEqual(first.inputHash, plain.inputHash);
+  assert.throws(() => sandbox.execute(
+    { stepId: "settle", effect: "network", input: { settleAt: new Date("2030-12-31T00:00:00.000Z") } },
+    () => ({ ok: false }),
+  ), /idempotency conflict/i);
+});
+
+test("Map and Set inputs fail closed instead of collapsing to plain objects", () => {
+  const sandbox = new DeterministicSandbox();
+  assert.throws(() => sandbox.execute(
+    { stepId: "map", effect: "none", input: { value: new Map([["secret", "value"]]) } },
+    (input) => input,
+  ), /unsupported sandbox object type/i);
+  assert.throws(() => sandbox.execute(
+    { stepId: "set", effect: "none", input: { value: new Set([1, 2, 3]) } },
+    (input) => input,
+  ), /unsupported sandbox object type/i);
+});
+
 test("checkpoint receipt or metadata tampering is rejected", () => {
   const sandbox = new DeterministicSandbox();
   sandbox.execute({ stepId: "s1", effect: "none", input: { value: 1 } }, () => ({ value: 2 }));
@@ -75,8 +105,20 @@ test("equivalent object-key ordering produces stable hashes", () => {
   assert.equal(first.outputHash, second.outputHash);
 });
 
-test("unsupported non-JSON values fail closed", () => {
+test("undefined optional object fields follow JSON omission semantics", () => {
+  const first = new DeterministicSandbox().execute(
+    { stepId: "optional-1", effect: "none", input: { a: 1, uri: undefined } },
+    (input) => input,
+  );
+  const second = new DeterministicSandbox().execute(
+    { stepId: "optional-2", effect: "none", input: { a: 1 } },
+    (input) => input,
+  );
+  assert.equal(first.inputHash, second.inputHash);
+});
+
+test("unsupported non-JSON scalar values fail closed", () => {
   const sandbox = new DeterministicSandbox();
-  assert.throws(() => sandbox.execute({ stepId: "bad", effect: "none", input: { value: undefined } }, (input) => input));
   assert.throws(() => sandbox.execute({ stepId: "bad-number", effect: "none", input: Number.NaN }, (input) => input));
+  assert.throws(() => sandbox.execute({ stepId: "bad-symbol", effect: "none", input: Symbol("x") }, (input) => input));
 });
