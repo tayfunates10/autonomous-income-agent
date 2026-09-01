@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { generateKeyPairSync } from "node:crypto";
 import { loadProductionConfig } from "../src/production/config.js";
 import { evaluateProductionReadiness } from "../src/production/readiness.js";
 
-const PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----\nZmFrZS1wdWJsaWMta2V5LWZvci10ZXN0cw==\n-----END PUBLIC KEY-----";
+const { publicKey } = generateKeyPairSync("ed25519");
+const PUBLIC_KEY = publicKey.export({ type: "spki", format: "pem" }).toString();
 
 function env(): Record<string, string> {
   return {
@@ -25,6 +27,27 @@ test("production config becomes ready with explicit safe settings", () => {
   const report = evaluateProductionReadiness(config, new Date("2026-09-01T09:00:00.000Z"));
   assert.equal(report.status, "ready");
   assert.ok(report.checks.every((item) => item.ok));
+});
+
+test("malformed owner public key fails readiness", () => {
+  const config = loadProductionConfig({
+    ...env(),
+    AIA_OWNER_PUBLIC_KEY_PEM: "-----BEGIN PUBLIC KEY-----\nZmFrZQ==\n-----END PUBLIC KEY-----",
+  });
+  const report = evaluateProductionReadiness(config, new Date("2026-09-01T09:00:00.000Z"));
+  assert.equal(report.status, "not_ready");
+  assert.equal(report.checks.find((item) => item.name === "owner_public_key")?.ok, false);
+});
+
+test("non-Ed25519 owner public key fails readiness", () => {
+  const { publicKey: rsaPublicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const config = loadProductionConfig({
+    ...env(),
+    AIA_OWNER_PUBLIC_KEY_PEM: rsaPublicKey.export({ type: "spki", format: "pem" }).toString(),
+  });
+  const report = evaluateProductionReadiness(config, new Date("2026-09-01T09:00:00.000Z"));
+  assert.equal(report.status, "not_ready");
+  assert.equal(report.checks.find((item) => item.name === "owner_public_key")?.ok, false);
 });
 
 test("owner private approval key is rejected from agent environment", () => {
