@@ -40,7 +40,7 @@ test("production transport rejects redirects even from requester abstraction", a
 });
 
 test("credentials bind only to exact configured origin", async () => {
-  let captured: PinnedHttpsRequest | undefined;
+  const captured: PinnedHttpsRequest[] = [];
   const secretResolver: SecretValueResolver = { async resolve() { return "token-value"; } };
   const transport = new ProductionHttpsTransport({
     resolver: publicResolver,
@@ -52,15 +52,14 @@ test("credentials bind only to exact configured origin", async () => {
       secret: { provider: "environment", name: "AIA_PROVIDER_TOKEN" },
     }],
     requester: async (request) => {
-      captured = request;
+      captured.push(request);
       return { status: 200, body: "ok" };
     },
   });
 
   await transport.send({ method: "GET", url: "https://api.example.com/v1", timeoutMs: 1000, maxResponseBytes: 1024 });
-  assert.equal(captured?.credential?.value, "Bearer token-value");
+  assert.equal(captured[0]?.credential?.value, "Bearer token-value");
 
-  captured = undefined;
   await transport.send({ method: "GET", url: "https://example.com/v1", timeoutMs: 1000, maxResponseBytes: 1024 });
-  assert.equal(captured?.credential, undefined);
+  assert.equal(captured[1]?.credential, undefined);
 });
