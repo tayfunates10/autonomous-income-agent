@@ -4,7 +4,7 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 
 ## Project status
 
-**Overall completion: 70%** — R0-R4 complete; R5 safe internet integrations is next.
+**Overall completion: 82%** — R0-R5 complete; R6 security, identity and owner authorization hardening is next.
 
 | Release | Scope | Target | Status |
 |---|---|---:|---|
@@ -13,7 +13,7 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 | R2 | Planner, memory & evaluator | 40% | Complete |
 | R3 | Opportunity discovery & scoring | 55% | Complete |
 | R4 | Product/content/service/revenue engines | 70% | Complete |
-| R5 | Safe internet integrations | 82% | Planned |
+| R5 | Safe internet integrations | 82% | Complete |
 | R6 | Security, identity & owner authorization hardening | 90% | Planned |
 | R7 | Sandbox/e2e/recovery testing | 96% | Planned |
 | R8 | Production readiness | 100% | Planned |
@@ -71,6 +71,15 @@ Discover -> Evaluate -> Policy Check -> Plan -> Execute Allowed Work
 - [x] Multi-currency revenue/cost/refund ledger
 - [x] Exact integer net-profit allocation with owner/operations/reinvestment accounting shares
 - [x] Duplicate/invalid ledger and allocation-policy validation tests
+
+### R5 — Safe internet integrations
+- [x] HTTPS-only public-web gateway with credential-in-URL rejection
+- [x] Loopback/private/link-local target blocking for SSRF resistance
+- [x] Authorized channel registry with exact-origin capability scoping
+- [x] Read-only public research and guarded publishing/customer/commerce writes
+- [x] Financial and identity actions excluded from generic internet gateway
+- [x] Request/response size budgets and in-memory rate limiting
+- [x] Negative tests for unauthorized origins, methods, private targets and gated capabilities
 
 ## Engineering workflow
 
