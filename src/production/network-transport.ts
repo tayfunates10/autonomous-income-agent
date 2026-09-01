@@ -82,6 +82,7 @@ function ipv6IsPublic(address: string): boolean {
   if (normalized.startsWith("::ffff:")) return false;
   if (normalized.startsWith("fc") || normalized.startsWith("fd")) return false;
   if (/^fe[89ab]/.test(normalized)) return false;
+  if (/^fe[c-f]/.test(normalized)) return false;
   if (normalized.startsWith("ff")) return false;
   if (normalized.startsWith("2001:db8:")) return false;
   if (normalized.startsWith("2002:")) return false;
@@ -94,11 +95,31 @@ export function isPublicNetworkAddress(address: ResolvedAddress): boolean {
   return family === 4 ? ipv4IsPublic(address.address) : ipv6IsPublic(address.address);
 }
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new Error("Network timeout must be a positive safe integer.");
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 export async function resolvePinnedPublicAddress(
   hostname: string,
   resolver: AddressResolver,
+  timeoutMs = 10_000,
 ): Promise<ResolvedAddress> {
-  const answers = await resolver.resolve(hostname);
+  const answers = await withTimeout(
+    resolver.resolve(hostname),
+    timeoutMs,
+    "DNS resolution timed out.",
+  );
   if (answers.length === 0) throw new Error("DNS resolution returned no addresses.");
   if (answers.some((answer) => !isPublicNetworkAddress(answer))) {
     throw new Error("DNS resolution returned a private, reserved, or otherwise non-public address.");
@@ -164,6 +185,7 @@ async function nodePinnedHttpsRequester(request: PinnedHttpsRequest): Promise<In
 }
 
 export interface ProductionHttpsTransportOptions {
+  allowedOrigins: readonly string[];
   resolver?: AddressResolver;
   secretResolver?: SecretValueResolver;
   credentialBindings?: readonly OriginCredentialBinding[];
@@ -175,13 +197,20 @@ export class ProductionHttpsTransport implements IntegrationTransport {
   readonly #resolver: AddressResolver;
   readonly #secretResolver: SecretValueResolver;
   readonly #bindings = new Map<string, OriginCredentialBinding>();
+  readonly #allowedOrigins: ReadonlySet<string>;
   readonly #allowedPorts: ReadonlySet<number>;
   readonly #requester: PinnedHttpsRequester;
 
-  constructor(options: ProductionHttpsTransportOptions = {}) {
+  constructor(options: ProductionHttpsTransportOptions) {
     this.#resolver = options.resolver ?? new SystemAddressResolver();
     this.#secretResolver = options.secretResolver ?? new EnvironmentSecretValueResolver();
     this.#requester = options.requester ?? nodePinnedHttpsRequester;
+
+    if (options.allowedOrigins.length === 0) throw new Error("Production transport requires at least one authorized origin.");
+    const origins = options.allowedOrigins.map((origin) => validatePublicHttpsUrl(origin).origin);
+    this.#allowedOrigins = new Set(origins);
+    if (this.#allowedOrigins.size !== origins.length) throw new Error("Production transport authorized origins must be unique.");
+
     const ports = options.allowedPorts ?? [443];
     if (ports.length === 0 || ports.some((port) => !Number.isSafeInteger(port) || port < 1 || port > 65535)) {
       throw new Error("Production transport allowed ports are invalid.");
@@ -190,6 +219,9 @@ export class ProductionHttpsTransport implements IntegrationTransport {
 
     for (const binding of options.credentialBindings ?? []) {
       const origin = validatePublicHttpsUrl(binding.origin).origin;
+      if (!this.#allowedOrigins.has(origin)) {
+        throw new Error(`Credential binding origin ${origin} is not an authorized production origin.`);
+      }
       if (this.#bindings.has(origin)) throw new Error(`Duplicate credential binding for ${origin}.`);
       const secret = validateSecretReference(binding.secret);
       this.#bindings.set(origin, {
@@ -203,10 +235,13 @@ export class ProductionHttpsTransport implements IntegrationTransport {
 
   async send(request: IntegrationTransportRequest): Promise<IntegrationTransportResponse> {
     const url = validatePublicHttpsUrl(request.url);
+    if (!this.#allowedOrigins.has(url.origin)) {
+      throw new Error(`HTTPS origin ${url.origin} is not authorized by production policy.`);
+    }
     const port = url.port === "" ? 443 : Number(url.port);
     if (!this.#allowedPorts.has(port)) throw new Error(`HTTPS port ${port} is not allowed by production policy.`);
 
-    const pinnedAddress = await resolvePinnedPublicAddress(url.hostname, this.#resolver);
+    const pinnedAddress = await resolvePinnedPublicAddress(url.hostname, this.#resolver, request.timeoutMs);
     const binding = this.#bindings.get(url.origin);
     let credential: PinnedHttpsRequest["credential"];
     if (binding) {
