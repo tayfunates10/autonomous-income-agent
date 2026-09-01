@@ -45,7 +45,10 @@ export class SafeIntegrationGateway {
     if (!isHostAllowed(request.host, authorization.allowedHosts)) return { requestId: request.requestId, integrationId: request.integrationId, ok: false, error: "host_not_allowed" };
     if (!authorization.allowedCapabilities.includes(request.capability)) return { requestId: request.requestId, integrationId: request.integrationId, ok: false, error: "capability_not_authorized_for_integration" };
 
-    const policy = evaluatePolicy({ actionId: request.requestId, capability: request.capability });
+    const policy = evaluatePolicy({
+      capability: request.capability,
+      channelAuthorized: authorization.kind === "publisher" || authorization.kind === "customer_support",
+    });
     if (policy.decision !== "allow") {
       return { requestId: request.requestId, integrationId: request.integrationId, ok: false, error: `policy_${policy.decision}` };
     }
