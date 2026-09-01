@@ -4,7 +4,7 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 
 ## Project status
 
-**Overall completion: 82%** — R0-R5 complete; R6 security, identity and owner authorization hardening is next.
+**Overall completion: 90%** — R0-R6 complete; R7 sandbox, end-to-end and recovery testing is next.
 
 | Release | Scope | Target | Status |
 |---|---|---:|---|
@@ -12,9 +12,9 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 | R1 | Agent brain & task runtime | 25% | Complete |
 | R2 | Planner, memory & evaluator | 40% | Complete |
 | R3 | Opportunity discovery & scoring | 55% | Complete |
-| R4 | Product/content/service/revenue engines | 70% | Complete |
+| R4 | Product/content/service engines | 70% | Complete |
 | R5 | Safe internet integrations | 82% | Complete |
-| R6 | Security, identity & owner authorization hardening | 90% | Planned |
+| R6 | Security, identity & owner authorization hardening | 90% | Complete |
 | R7 | Sandbox/e2e/recovery testing | 96% | Planned |
 | R8 | Production readiness | 100% | Planned |
 
@@ -80,6 +80,15 @@ Discover -> Evaluate -> Policy Check -> Plan -> Execute Allowed Work
 - [x] Financial and identity actions excluded from generic internet gateway
 - [x] Request/response size budgets and in-memory rate limiting
 - [x] Negative tests for unauthorized origins, methods, private targets and gated capabilities
+
+### R6 — Security, identity and owner authorization
+- [x] Ed25519-signed owner approval envelopes with trusted-key verification
+- [x] Exact capability/action scoping, expiry enforcement and one-time nonce replay prevention
+- [x] Owner kill-switch that blocks agent operation until explicitly released
+- [x] Secret references that reject inline credential values
+- [x] Bounded spend reservation guard for autonomous within-budget actions
+- [x] Explicit AI representative identity profile that cannot claim to be a human
+- [x] Security negative tests for wrong scope, expiry, replay, overspend and human impersonation
 
 ## Engineering workflow
 
