@@ -4,7 +4,7 @@ Owner-controlled, policy-governed autonomous AI system for discovering legitimat
 
 ## Project status
 
-**Overall completion: 100%** — R0-R8 are merged to `main`; the production-readiness acceptance gate passed on the exact R8 head before merge. A subsequent UAT audit identified enforcement-integration and hardening gaps; those findings are being closed through dedicated UAT remediation PRs and are not considered fully accepted until the final UAT regression PR is green and merged.
+**Overall completion: 100%** — R0-R8 are merged to `main`; the production-readiness acceptance gate passed on the exact R8 head before merge. The subsequent UAT audit identified 14 enforcement-integration and hardening findings; F-01 through F-14 and the Section 5 negative-integration/documentation coverage gap have now been remediated through dedicated CI-validated UAT PRs.
 
 | Release | Scope | Target | Status |
 |---|---|---:|---|
@@ -130,7 +130,8 @@ The post-release UAT report identified 14 findings. The remediation sequence pre
 - [x] F-01–F-04: signed approval enforcement, runtime kill-switch, over-budget owner escalation, deterministic sandbox hashing
 - [x] F-05–F-08: IPv6 SSRF consistency, PEM normalization, public API exports, rate-budget ordering
 - [x] F-09–F-13: deterministic audit timestamps, planner limit validation, secret-reference hardening, optional undefined hashing behavior, expired-memory rejection
-- [ ] F-14 and final consolidated negative integration/documentation acceptance — pending exact-head CI and merge
+- [x] F-14 and final consolidated negative integration/documentation acceptance
+- [x] UAT remediation PR chain #14, #15, #16 and #17 merged to `main` with exact-head CI success before each merge
 
 ## Engineering workflow
 
