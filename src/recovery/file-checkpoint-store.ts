@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { DeterministicSandbox, type RecoveryCheckpoint } from "./sandbox.js";
@@ -18,32 +19,45 @@ function validateCheckpoint(checkpoint: RecoveryCheckpoint): RecoveryCheckpoint 
 
 export class FileCheckpointStore implements CheckpointStore {
   readonly #path: string;
+  #writeQueue: Promise<void> = Promise.resolve();
 
   constructor(path: string) {
     if (path.trim().length === 0 || path.includes("\0")) throw new Error("Checkpoint path is invalid.");
     this.#path = path;
   }
 
-  async save(checkpoint: RecoveryCheckpoint): Promise<void> {
-    const validated = validateCheckpoint(checkpoint);
+  async #writeValidated(checkpoint: RecoveryCheckpoint): Promise<void> {
     const directory = dirname(this.#path);
     await mkdir(directory, { recursive: true, mode: 0o700 });
-    const tempPath = `${this.#path}.${process.pid}.${Date.now()}.tmp`;
+    const tempPath = `${this.#path}.${process.pid}.${randomUUID()}.tmp`;
+    let created = false;
     try {
-      await writeFile(tempPath, `${JSON.stringify(validated)}\n`, {
+      await writeFile(tempPath, `${JSON.stringify(checkpoint)}\n`, {
         encoding: "utf8",
         mode: 0o600,
         flag: "wx",
       });
+      created = true;
       await rename(tempPath, this.#path);
+      created = false;
     } finally {
-      await unlink(tempPath).catch((error: NodeJS.ErrnoException) => {
-        if (error.code !== "ENOENT") throw error;
-      });
+      if (created) {
+        await unlink(tempPath).catch((error: NodeJS.ErrnoException) => {
+          if (error.code !== "ENOENT") throw error;
+        });
+      }
     }
   }
 
+  save(checkpoint: RecoveryCheckpoint): Promise<void> {
+    const validated = validateCheckpoint(checkpoint);
+    const operation = this.#writeQueue.then(() => this.#writeValidated(validated));
+    this.#writeQueue = operation.catch(() => undefined);
+    return operation;
+  }
+
   async load(): Promise<RecoveryCheckpoint | null> {
+    await this.#writeQueue;
     let raw: string;
     try {
       raw = await readFile(this.#path, "utf8");
