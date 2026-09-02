@@ -36,8 +36,8 @@ async function executeWithControls<T>(
   const controls = new Promise<never>((_, reject) => {
     if (signal) {
       const onAbort = () => {
-        controller.abort(signal.reason);
         reject(new TaskCancelledError());
+        controller.abort(signal.reason);
       };
       signal.addEventListener("abort", onAbort, { once: true });
       removeAbortListener = () => signal.removeEventListener("abort", onAbort);
@@ -45,8 +45,9 @@ async function executeWithControls<T>(
 
     if (timeoutMs !== undefined) {
       timeout = setTimeout(() => {
-        controller.abort(new TaskTimeoutError(timeoutMs));
-        reject(new TaskTimeoutError(timeoutMs));
+        const error = new TaskTimeoutError(timeoutMs);
+        reject(error);
+        controller.abort(error);
       }, timeoutMs);
     }
   });
