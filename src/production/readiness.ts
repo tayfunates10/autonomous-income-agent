@@ -27,6 +27,19 @@ function ownerPublicKeyIsValid(config: ProductionConfig): boolean {
   }
 }
 
+function authorizedOriginsAreReady(origins: readonly string[]): boolean {
+  if (origins.length === 0) return false;
+  return origins.every((origin) => {
+    try {
+      const url = new URL(origin);
+      const port = url.port === "" ? 443 : Number(url.port);
+      return url.protocol === "https:" && port === 443 && url.origin === origin;
+    } catch {
+      return false;
+    }
+  });
+}
+
 export function evaluateProductionReadiness(config: ProductionConfig, now = new Date()): ReadinessReport {
   const checks: ReadinessCheck[] = [
     check("production_mode", config.mode === "production", "Runtime must be explicitly configured for production."),
@@ -35,7 +48,7 @@ export function evaluateProductionReadiness(config: ProductionConfig, now = new 
     check("ai_disclosure", config.disclosure.trim().length >= 12, "AI representative disclosure must be explicit."),
     check("owner_public_key", ownerPublicKeyIsValid(config), "Owner approval verification public key must be a parseable Ed25519 public key; private signing key must remain external."),
     check("budget", Number.isSafeInteger(config.budgetLimitMinor) && config.budgetLimitMinor >= 0 && /^[A-Z]{3}$/.test(config.budgetCurrency), "Budget policy must be valid."),
-    check("authorized_origins", config.allowedOrigins.length > 0 && config.allowedOrigins.every((origin) => origin.startsWith("https://")), "At least one HTTPS origin must be authorized."),
+    check("authorized_origins", authorizedOriginsAreReady(config.allowedOrigins), "Authorized production origins must be canonical HTTPS origins on supported port 443."),
     check("checkpoint_store", config.checkpointPath.trim().length > 0, "Persistent checkpoint path must be configured."),
     check("network_limits", config.network.timeoutMs > 0 && config.network.maxResponseBytes > 0 && config.network.maxRequestBodyBytes > 0 && config.network.maxRequestsPerWindow > 0 && config.network.windowMs > 0, "Network resource limits must be positive."),
   ];
