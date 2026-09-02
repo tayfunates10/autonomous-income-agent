@@ -47,4 +47,5 @@ export interface OpportunityScore {
   evidenceQuality: number;
   decision: OpportunityDecision;
   reasons: readonly string[];
+  blockedByHardCeiling?: string;
 }
