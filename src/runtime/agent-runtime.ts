@@ -1,5 +1,10 @@
 import { authorizeExecution } from "../approval/gate.js";
-import { appendAuditEvent, type AuditEvent } from "../audit/hash-chain.js";
+import {
+  appendAuditEvent,
+  type AuditAnchor,
+  type AuditEvent,
+  type AuditWindow,
+} from "../audit/hash-chain.js";
 import type { PolicyResult } from "../policy/engine.js";
 import { AgentKillSwitch } from "../security/controls.js";
 import type { OwnerAuthorizationVerifier } from "../security/owner-authorization.js";
@@ -64,13 +69,16 @@ async function executeWithControls<T>(
 export interface AgentRuntimeSecurityOptions {
   ownerAuthorizationVerifier?: OwnerAuthorizationVerifier;
   killSwitch?: AgentKillSwitch;
+  maxRetainedAuditEvents?: number;
 }
 
 export class AgentRuntime {
   readonly #registry: ExecutorRegistry;
   readonly #ownerAuthorizationVerifier: OwnerAuthorizationVerifier | undefined;
   readonly #killSwitch: AgentKillSwitch;
+  readonly #maxRetainedAuditEvents: number;
   readonly #audit: AuditEvent[] = [];
+  #auditBase: AuditAnchor = { eventCount: 0, tailHash: "GENESIS" };
   readonly #completedActionIds = new Set<string>();
   readonly #inFlightActionIds = new Set<string>();
 
@@ -78,15 +86,68 @@ export class AgentRuntime {
     this.#registry = registry;
     this.#ownerAuthorizationVerifier = security.ownerAuthorizationVerifier;
     this.#killSwitch = security.killSwitch ?? new AgentKillSwitch();
+    const retention = security.maxRetainedAuditEvents ?? 10_000;
+    if (!Number.isSafeInteger(retention) || retention < 1) {
+      throw new Error("maxRetainedAuditEvents must be a positive safe integer.");
+    }
+    this.#maxRetainedAuditEvents = retention;
   }
 
   getAuditTrail(): readonly AuditEvent[] {
-    return [...this.#audit];
+    return this.#audit.map((event) => ({ ...event }));
   }
 
-  #record(task: AgentTask, policy: PolicyResult, reason: string, approvalId?: string, now?: Date): void {
+  getAuditWindow(): AuditWindow {
+    const events = this.getAuditTrail();
+    return {
+      base: { ...this.#auditBase },
+      head: {
+        eventCount: this.#auditBase.eventCount + events.length,
+        tailHash: events.at(-1)?.hash ?? this.#auditBase.tailHash,
+      },
+      events,
+    };
+  }
+
+  pruneAuditTrail(retainLast = 0): AuditAnchor {
+    if (!Number.isSafeInteger(retainLast) || retainLast < 0) {
+      throw new Error("retainLast must be a non-negative safe integer.");
+    }
+    const removeCount = Math.max(0, this.#audit.length - retainLast);
+    if (removeCount === 0) return { ...this.#auditBase };
+    const removed = this.#audit.splice(0, removeCount);
+    this.#auditBase = {
+      eventCount: this.#auditBase.eventCount + removed.length,
+      tailHash: removed.at(-1)!.hash,
+    };
+    return { ...this.#auditBase };
+  }
+
+  #compactAudit(): void {
+    const overflow = this.#audit.length - this.#maxRetainedAuditEvents;
+    if (overflow <= 0) return;
+    const removed = this.#audit.splice(0, overflow);
+    this.#auditBase = {
+      eventCount: this.#auditBase.eventCount + removed.length,
+      tailHash: removed.at(-1)!.hash,
+    };
+  }
+
+  #runAudit(events: readonly AuditEvent[]): readonly AuditEvent[] {
+    return events.map((event) => ({ ...event }));
+  }
+
+  #record(
+    task: AgentTask,
+    policy: PolicyResult,
+    reason: string,
+    approvalId: string | undefined,
+    now: Date | undefined,
+    runAudit: AuditEvent[],
+  ): void {
+    const eventNumber = this.#auditBase.eventCount + this.#audit.length + 1;
     const event = appendAuditEvent(this.#audit, {
-      eventId: `${task.taskId}:event:${this.#audit.length + 1}`,
+      eventId: `${task.taskId}:event:${eventNumber}`,
       actionId: task.actionId,
       timestamp: (now ?? new Date()).toISOString(),
       actor: "system",
@@ -94,28 +155,31 @@ export class AgentRuntime {
       decision: policy.decision,
       reason,
       ...(approvalId === undefined ? {} : { approvalId }),
-    });
+    }, this.#auditBase.tailHash);
     this.#audit.push(event);
+    runAudit.push({ ...event });
+    this.#compactAudit();
   }
 
   async run<TOutput = unknown>(task: AgentTask, options: TaskRunOptions = {}): Promise<TaskRunResult<TOutput>> {
     if (options.timeoutMs !== undefined && (!Number.isSafeInteger(options.timeoutMs) || options.timeoutMs <= 0)) {
       throw new Error("timeoutMs must be a positive safe integer when provided.");
     }
+    const runAudit: AuditEvent[] = [];
 
     try {
       this.#killSwitch.assertOperational();
     } catch (error) {
       const message = errorMessage(error);
       const policy: PolicyResult = { decision: "deny", reason: message };
-      this.#record(task, policy, message, undefined, options.now);
+      this.#record(task, policy, message, undefined, options.now, runAudit);
       return {
         taskId: task.taskId,
         actionId: task.actionId,
         status: "denied",
         attempts: 0,
         policy,
-        audit: this.getAuditTrail(),
+        audit: this.#runAudit(runAudit),
         error: message,
       };
     }
@@ -125,14 +189,14 @@ export class AgentRuntime {
         decision: "deny",
         reason: `Action ${task.actionId} was already executed or is currently in flight.`,
       };
-      this.#record(task, policy, policy.reason, undefined, options.now);
+      this.#record(task, policy, policy.reason, undefined, options.now, runAudit);
       return {
         taskId: task.taskId,
         actionId: task.actionId,
         status: "rejected_duplicate",
         attempts: 0,
         policy,
-        audit: this.getAuditTrail(),
+        audit: this.#runAudit(runAudit),
         error: policy.reason,
       };
     }
@@ -147,7 +211,7 @@ export class AgentRuntime {
       ...(options.now === undefined ? {} : { now: options.now }),
     });
 
-    this.#record(task, authorization, authorization.reason, authorization.approvalId, options.now);
+    this.#record(task, authorization, authorization.reason, authorization.approvalId, options.now, runAudit);
 
     if (authorization.decision === "deny") {
       return {
@@ -156,7 +220,7 @@ export class AgentRuntime {
         status: "denied",
         attempts: 0,
         policy: authorization,
-        audit: this.getAuditTrail(),
+        audit: this.#runAudit(runAudit),
         error: authorization.reason,
       };
     }
@@ -168,35 +232,35 @@ export class AgentRuntime {
         status: "awaiting_approval",
         attempts: 0,
         policy: authorization,
-        audit: this.getAuditTrail(),
+        audit: this.#runAudit(runAudit),
       };
     }
 
     const executor = this.#registry.get(task.capability);
     if (!executor) {
       const error = `No executor registered for ${task.capability}.`;
-      this.#record(task, authorization, error, authorization.approvalId, options.now);
+      this.#record(task, authorization, error, authorization.approvalId, options.now, runAudit);
       return {
         taskId: task.taskId,
         actionId: task.actionId,
         status: "failed",
         attempts: 0,
         policy: authorization,
-        audit: this.getAuditTrail(),
+        audit: this.#runAudit(runAudit),
         error,
       };
     }
 
     if (options.signal?.aborted) {
       const error = "Task was cancelled before execution.";
-      this.#record(task, authorization, error, authorization.approvalId, options.now);
+      this.#record(task, authorization, error, authorization.approvalId, options.now, runAudit);
       return {
         taskId: task.taskId,
         actionId: task.actionId,
         status: "cancelled",
         attempts: 0,
         policy: authorization,
-        audit: this.getAuditTrail(),
+        audit: this.#runAudit(runAudit),
         error,
       };
     }
@@ -210,7 +274,7 @@ export class AgentRuntime {
         attempts += 1;
         try {
           const output = await executeWithControls(
-            (signal) => executor(task.input, {
+            (signal) => executor(structuredClone(task.input), {
               taskId: task.taskId,
               actionId: task.actionId,
               attempt: attempts,
@@ -221,41 +285,41 @@ export class AgentRuntime {
           );
 
           this.#completedActionIds.add(task.actionId);
-          this.#record(task, authorization, `Execution succeeded after ${attempts} attempt(s).`, authorization.approvalId, options.now);
+          this.#record(task, authorization, `Execution succeeded after ${attempts} attempt(s).`, authorization.approvalId, options.now, runAudit);
           return {
             taskId: task.taskId,
             actionId: task.actionId,
             status: "succeeded",
             attempts,
             policy: authorization,
-            audit: this.getAuditTrail(),
+            audit: this.#runAudit(runAudit),
             output,
           };
         } catch (error) {
           if (error instanceof TaskCancelledError || options.signal?.aborted) {
             const message = "Task was cancelled during execution.";
-            this.#record(task, authorization, message, authorization.approvalId, options.now);
+            this.#record(task, authorization, message, authorization.approvalId, options.now, runAudit);
             return {
               taskId: task.taskId,
               actionId: task.actionId,
               status: "cancelled",
               attempts,
               policy: authorization,
-              audit: this.getAuditTrail(),
+              audit: this.#runAudit(runAudit),
               error: message,
             };
           }
 
           if (error instanceof TaskTimeoutError) {
             const message = error.message;
-            this.#record(task, authorization, message, authorization.approvalId, options.now);
+            this.#record(task, authorization, message, authorization.approvalId, options.now, runAudit);
             return {
               taskId: task.taskId,
               actionId: task.actionId,
               status: "timed_out",
               attempts,
               policy: authorization,
-              audit: this.getAuditTrail(),
+              audit: this.#runAudit(runAudit),
               error: message,
             };
           }
@@ -265,14 +329,14 @@ export class AgentRuntime {
           }
 
           const message = errorMessage(error);
-          this.#record(task, authorization, `Execution failed: ${message}`, authorization.approvalId, options.now);
+          this.#record(task, authorization, `Execution failed: ${message}`, authorization.approvalId, options.now, runAudit);
           return {
             taskId: task.taskId,
             actionId: task.actionId,
             status: "failed",
             attempts,
             policy: authorization,
-            audit: this.getAuditTrail(),
+            audit: this.#runAudit(runAudit),
             error: message,
           };
         }
