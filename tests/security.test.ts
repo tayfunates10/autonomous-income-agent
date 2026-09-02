@@ -62,7 +62,7 @@ test("signed approval rejects wrong action and expired windows", () => {
   assert.equal(verifier.verify(approval, { capability: "finance.transfer_funds", actionId: "transfer-1" }, new Date("2026-09-01T08:06:00.000Z")), false);
 });
 
-test("kill switch blocks execution until owner release", () => {
+test("kill-switch primitive rejects operation until owner release", () => {
   const killSwitch = new AgentKillSwitch();
   killSwitch.assertOperational();
   killSwitch.engage("owner emergency stop");
