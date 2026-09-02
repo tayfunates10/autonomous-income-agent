@@ -18,6 +18,11 @@ export interface AuditEvent extends AuditEventInput {
   hash: string;
 }
 
+export interface AuditAnchor {
+  eventCount: number;
+  tailHash: string;
+}
+
 function canonicalPayload(event: AuditEventInput, previousHash: string): string {
   return JSON.stringify({
     eventId: event.eventId,
@@ -42,7 +47,17 @@ export function appendAuditEvent(chain: readonly AuditEvent[], input: AuditEvent
   return { ...input, previousHash, hash };
 }
 
-export function verifyAuditChain(chain: readonly AuditEvent[]): boolean {
+export function createAuditAnchor(chain: readonly AuditEvent[]): AuditAnchor {
+  return {
+    eventCount: chain.length,
+    tailHash: chain.at(-1)?.hash ?? "GENESIS",
+  };
+}
+
+export function verifyAuditChain(chain: readonly AuditEvent[], expected: AuditAnchor): boolean {
+  if (!Number.isSafeInteger(expected.eventCount) || expected.eventCount < 0) return false;
+  if (chain.length !== expected.eventCount) return false;
+
   let expectedPrevious = "GENESIS";
 
   for (const event of chain) {
@@ -55,5 +70,5 @@ export function verifyAuditChain(chain: readonly AuditEvent[]): boolean {
     expectedPrevious = hash;
   }
 
-  return true;
+  return expectedPrevious === expected.tailHash;
 }
