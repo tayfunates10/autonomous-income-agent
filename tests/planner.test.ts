@@ -81,3 +81,14 @@ test("planner rejects duplicate action ids", () => {
     PlanValidationError,
   );
 });
+
+test("planner rejects NaN, non-integer and non-positive maxSteps instead of disabling the bound", () => {
+  const oneStep = [{ stepId: "a", actionId: "a-1", capability: "content.draft" as const, input: {} }];
+
+  for (const maxSteps of [Number.NaN, Number.POSITIVE_INFINITY, 1.5, 0, -1]) {
+    assert.throws(
+      () => buildPlan({ planId: "bad-limit", goal: "Bounded plan", steps: oneStep, maxSteps }),
+      PlanValidationError,
+    );
+  }
+});
