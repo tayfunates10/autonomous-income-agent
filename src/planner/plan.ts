@@ -86,8 +86,16 @@ function topologicalOrder(steps: readonly PlanStepDraft[]): readonly PlanStepDra
   return ordered;
 }
 
+function resolveMaxSteps(value: number | undefined): number {
+  if (value === undefined) return 50;
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new PlanValidationError("Plan maxSteps must be a positive safe integer.");
+  }
+  return value;
+}
+
 export function buildPlan(draft: PlanDraft): ExecutionPlan {
-  const maxSteps = Math.max(1, Math.floor(draft.maxSteps ?? 50));
+  const maxSteps = resolveMaxSteps(draft.maxSteps);
   if (draft.goal.trim().length === 0) throw new PlanValidationError("Plan goal cannot be empty.");
   if (draft.steps.length === 0) throw new PlanValidationError("Plan must contain at least one step.");
   if (draft.steps.length > maxSteps) {

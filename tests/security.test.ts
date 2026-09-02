@@ -83,7 +83,14 @@ test("budget guard refuses overspend and secret references never contain inline 
     provider: "vault",
     name: "payments/api-token",
   });
+  assert.deepEqual(validateSecretReference({ provider: "environment", name: "AIA_PAYMENT_TOKEN" }), {
+    provider: "environment",
+    name: "AIA_PAYMENT_TOKEN",
+  });
   assert.throws(() => validateSecretReference({ provider: "environment", name: "TOKEN=plaintext" }));
+  assert.throws(() => validateSecretReference({ provider: "environment", name: "credential=hunter2" }));
+  assert.throws(() => validateSecretReference({ provider: "environment", name: "sk-proj-9f3a2b1c8d7e" }));
+  assert.throws(() => validateSecretReference({ provider: "environment", name: "AKIAIOSFODNN7EXAMPLE" }));
 });
 
 test("agent identity must disclose AI status and cannot pose as a human", () => {

@@ -27,12 +27,31 @@ export interface SecretReference {
   name: string;
 }
 
+function looksLikeInlineCredential(value: string): boolean {
+  return (
+    value.includes("=") ||
+    /[\r\n\t]/.test(value) ||
+    /^\s*(?:bearer\s+)/i.test(value) ||
+    /^(?:sk-[A-Za-z0-9_-]{8,}|AKIA[0-9A-Z]{12,}|gh[pousr]_[A-Za-z0-9_]{20,})$/.test(value)
+  );
+}
+
 export function validateSecretReference(reference: SecretReference): SecretReference {
-  if (reference.name.trim().length === 0) throw new Error("Secret reference name cannot be empty.");
-  if (/password|token|secret|key=/i.test(reference.name) && reference.name.includes("=")) {
+  const name = reference.name.trim();
+  if (name.length === 0) throw new Error("Secret reference name cannot be empty.");
+  if (looksLikeInlineCredential(name)) {
     throw new Error("Secret reference must be an identifier, never an inline credential.");
   }
-  return { provider: reference.provider, name: reference.name.trim() };
+
+  if (reference.provider === "environment") {
+    if (!/^[A-Z][A-Z0-9_]{2,127}$/.test(name)) {
+      throw new Error("Environment secret reference must be an uppercase environment variable identifier.");
+    }
+  } else if (!/^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/.test(name)) {
+    throw new Error("Vault/cloud secret reference contains unsupported characters.");
+  }
+
+  return { provider: reference.provider, name };
 }
 
 export class SpendBudgetGuard {
