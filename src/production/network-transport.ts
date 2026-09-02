@@ -182,6 +182,13 @@ export class ProductionHttpsTransport implements IntegrationTransport {
       throw new Error("Production transport allowed ports are invalid.");
     }
     this.#allowedPorts = new Set(ports);
+    for (const origin of origins) {
+      const url = new URL(origin);
+      const port = url.port === "" ? 443 : Number(url.port);
+      if (!this.#allowedPorts.has(port)) {
+        throw new Error(`Authorized origin ${origin} uses port ${port}, which is not allowed by production policy.`);
+      }
+    }
 
     for (const binding of options.credentialBindings ?? []) {
       const origin = validatePublicHttpsUrl(binding.origin).origin;
@@ -189,6 +196,9 @@ export class ProductionHttpsTransport implements IntegrationTransport {
         throw new Error(`Credential binding origin ${origin} is not an authorized production origin.`);
       }
       if (this.#bindings.has(origin)) throw new Error(`Duplicate credential binding for ${origin}.`);
+      if (binding.prefix !== undefined && /[\r\n]/.test(binding.prefix)) {
+        throw new Error("Credential binding prefix is invalid for an HTTP header.");
+      }
       const secret = validateSecretReference(binding.secret);
       this.#bindings.set(origin, {
         origin,
@@ -212,8 +222,10 @@ export class ProductionHttpsTransport implements IntegrationTransport {
     let credential: PinnedHttpsRequest["credential"];
     if (binding) {
       const secret = await this.#secretResolver.resolve(binding.secret);
-      if (secret.length === 0 || /[\r\n]/.test(secret)) throw new Error("Resolved credential is invalid for an HTTP header.");
       const value = `${binding.prefix ?? ""}${secret}`;
+      if (secret.length === 0 || value.length === 0 || /[\r\n]/.test(value)) {
+        throw new Error("Resolved credential is invalid for an HTTP header.");
+      }
       credential = { header: binding.header, value };
     }
 
