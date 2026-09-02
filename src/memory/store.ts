@@ -32,7 +32,7 @@ function timestamp(value: string, field: string): number {
   return parsed;
 }
 
-function validate(entry: MemoryEntry): void {
+function validate(entry: MemoryEntry, now: Date): void {
   if (entry.id.trim().length === 0) throw new Error("Memory id cannot be empty.");
   if (entry.text.trim().length === 0) throw new Error("Memory text cannot be empty.");
   if (entry.provenance.sourceId.trim().length === 0) throw new Error("Memory provenance sourceId is required.");
@@ -41,8 +41,10 @@ function validate(entry: MemoryEntry): void {
   }
 
   const observedAt = timestamp(entry.observedAt, "observedAt");
-  if (entry.expiresAt !== undefined && timestamp(entry.expiresAt, "expiresAt") <= observedAt) {
-    throw new Error("Memory expiresAt must be later than observedAt.");
+  if (entry.expiresAt !== undefined) {
+    const expiresAt = timestamp(entry.expiresAt, "expiresAt");
+    if (expiresAt <= observedAt) throw new Error("Memory expiresAt must be later than observedAt.");
+    if (expiresAt <= now.getTime()) throw new Error("Memory expiresAt must be in the future at insertion time.");
   }
 }
 
@@ -53,8 +55,8 @@ function isExpired(entry: MemoryEntry, now: Date): boolean {
 export class MemoryStore {
   readonly #entries = new Map<string, MemoryEntry>();
 
-  upsert(entry: MemoryEntry): void {
-    validate(entry);
+  upsert(entry: MemoryEntry, now: Date = new Date()): void {
+    validate(entry, now);
     this.#entries.set(entry.id, {
       ...entry,
       text: entry.text.trim(),
