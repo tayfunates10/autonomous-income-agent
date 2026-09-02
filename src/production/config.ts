@@ -102,6 +102,7 @@ export function loadProductionConfig(env: EnvironmentMap = process.env): Product
   const allowedOrigins = parseOrigins(required(env, "AIA_ALLOWED_ORIGINS"));
   const checkpointPath = required(env, "AIA_CHECKPOINT_PATH");
   if (checkpointPath.includes("\0")) throw new Error("AIA_CHECKPOINT_PATH contains an invalid null byte.");
+  const ownerPublicKeyPem = required(env, "AIA_OWNER_PUBLIC_KEY_PEM").replace(/\\n/g, "\n");
 
   return {
     mode: "production",
@@ -110,7 +111,7 @@ export function loadProductionConfig(env: EnvironmentMap = process.env): Product
     ownerReference: required(env, "AIA_OWNER_REFERENCE"),
     disclosure: required(env, "AIA_AGENT_DISCLOSURE"),
     ownerKeyId: required(env, "AIA_OWNER_KEY_ID"),
-    ownerPublicKeyPem: required(env, "AIA_OWNER_PUBLIC_KEY_PEM"),
+    ownerPublicKeyPem,
     budgetLimitMinor: nonNegativeInteger(env, "AIA_BUDGET_LIMIT_MINOR"),
     budgetCurrency,
     allowedOrigins,

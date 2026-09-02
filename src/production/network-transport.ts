@@ -7,6 +7,7 @@ import type {
   IntegrationTransportResponse,
 } from "../integrations/gateway.js";
 import { validatePublicHttpsUrl } from "../integrations/safe-url.js";
+import { isPublicNetworkAddress } from "../security/network-address.js";
 import { validateSecretReference, type SecretReference } from "../security/controls.js";
 
 export interface ResolvedAddress {
@@ -58,42 +59,7 @@ export interface PinnedHttpsRequest extends IntegrationTransportRequest {
 
 export type PinnedHttpsRequester = (request: PinnedHttpsRequest) => Promise<IntegrationTransportResponse>;
 
-function ipv4IsPublic(address: string): boolean {
-  const parts = address.split(".").map(Number);
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
-  const [a = -1, b = -1, c = -1] = parts;
-  if (a === 0 || a === 10 || a === 127) return false;
-  if (a === 100 && b >= 64 && b <= 127) return false;
-  if (a === 169 && b === 254) return false;
-  if (a === 172 && b >= 16 && b <= 31) return false;
-  if (a === 192 && b === 168) return false;
-  if (a === 192 && b === 0) return false;
-  if (a === 192 && b === 2) return false;
-  if (a === 198 && (b === 18 || b === 19)) return false;
-  if (a === 198 && b === 51 && c === 100) return false;
-  if (a === 203 && b === 0 && c === 113) return false;
-  if (a >= 224) return false;
-  return true;
-}
-
-function ipv6IsPublic(address: string): boolean {
-  const normalized = address.toLowerCase();
-  if (normalized === "::" || normalized === "::1") return false;
-  if (normalized.startsWith("::ffff:")) return false;
-  if (normalized.startsWith("fc") || normalized.startsWith("fd")) return false;
-  if (/^fe[89ab]/.test(normalized)) return false;
-  if (/^fe[c-f]/.test(normalized)) return false;
-  if (normalized.startsWith("ff")) return false;
-  if (normalized.startsWith("2001:db8:")) return false;
-  if (normalized.startsWith("2002:")) return false;
-  return true;
-}
-
-export function isPublicNetworkAddress(address: ResolvedAddress): boolean {
-  const family = isIP(address.address);
-  if (family !== address.family) return false;
-  return family === 4 ? ipv4IsPublic(address.address) : ipv6IsPublic(address.address);
-}
+export { isPublicNetworkAddress } from "../security/network-address.js";
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new Error("Network timeout must be a positive safe integer.");

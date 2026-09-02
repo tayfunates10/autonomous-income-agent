@@ -82,7 +82,6 @@ export class IntegrationGateway {
     if (request.actionId.trim().length === 0) throw new Error("actionId cannot be empty.");
     const target = validatePublicHttpsUrl(request.url);
     this.#enforceRequestShape(request);
-    this.#consumeRateBudget(now);
 
     const channelAuthorized = WRITE_CAPABILITIES.has(request.capability)
       ? this.#channels.isAuthorized(request.channelId, request.capability, target)
@@ -100,6 +99,8 @@ export class IntegrationGateway {
     if (policy.decision !== "allow") {
       throw new Error(`Integration denied by policy: ${policy.reason}`);
     }
+
+    this.#consumeRateBudget(now);
 
     const response = await this.#transport.send({
       url: target.toString(),
