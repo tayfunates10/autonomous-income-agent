@@ -46,7 +46,18 @@ function nonNegativeInteger(env: EnvironmentMap, name: string): number {
 }
 
 function parseOrigins(raw: string): readonly string[] {
-  const origins = raw.split(",").map((value) => value.trim()).filter(Boolean).map((value) => validatePublicHttpsUrl(value).origin);
+  const origins = raw
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => {
+      const url = validatePublicHttpsUrl(value);
+      const port = url.port === "" ? 443 : Number(url.port);
+      if (port !== 443) {
+        throw new Error(`Production origin ${url.origin} uses unsupported HTTPS port ${port}; only 443 is allowed by environment configuration.`);
+      }
+      return url.origin;
+    });
   const unique = [...new Set(origins)];
   if (unique.length === 0) throw new Error("At least one authorized production origin is required.");
   return unique;
