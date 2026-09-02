@@ -9,7 +9,8 @@ export type TaskStatus =
   | "denied"
   | "failed"
   | "rejected_duplicate"
-  | "succeeded";
+  | "succeeded"
+  | "timed_out";
 
 export interface AgentTask<TInput = unknown> {
   taskId: string;
@@ -25,6 +26,7 @@ export interface TaskRunOptions {
   maxRetries?: number;
   signal?: AbortSignal;
   now?: Date;
+  timeoutMs?: number;
 }
 
 export interface TaskRunResult<TOutput = unknown> {

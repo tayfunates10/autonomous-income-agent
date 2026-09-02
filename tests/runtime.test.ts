@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { generateKeyPairSync } from "node:crypto";
-import { verifyAuditChain } from "../src/audit/hash-chain.js";
+import { createAuditAnchor, verifyAuditChain } from "../src/audit/hash-chain.js";
 import { AgentRuntime } from "../src/runtime/agent-runtime.js";
 import { ExecutorRegistry, TransientExecutionError } from "../src/runtime/executor-registry.js";
 import { AgentKillSwitch } from "../src/security/controls.js";
@@ -35,7 +35,7 @@ test("allowed task executes through the registered capability executor", async (
   assert.equal(result.status, "succeeded");
   assert.equal(result.attempts, 1);
   assert.deepEqual(result.output, { received: { query: "market signal" } });
-  assert.equal(verifyAuditChain(result.audit), true);
+  assert.equal(verifyAuditChain(result.audit, createAuditAnchor(result.audit)), true);
 });
 
 test("permanently denied task never reaches an executor", async () => {
@@ -265,4 +265,58 @@ test("pre-aborted signal cancels before executor invocation", async () => {
   assert.equal(result.status, "cancelled");
   assert.equal(result.attempts, 0);
   assert.equal(called, false);
+});
+
+test("runtime timeout aborts the executor signal and releases actionId", async () => {
+  const registry = new ExecutorRegistry();
+  let calls = 0;
+  let observedAbort = false;
+  registry.register("content.draft", async (_input, context) => {
+    calls += 1;
+    if (calls === 1) {
+      await new Promise<void>((resolve) => {
+        context.signal?.addEventListener("abort", () => {
+          observedAbort = true;
+          resolve();
+        }, { once: true });
+      });
+      return "late";
+    }
+    return "retry-ok";
+  });
+  const runtime = new AgentRuntime(registry);
+  const task = { taskId: "timeout-1", actionId: "timeout-action", capability: "content.draft" as const, input: {} };
+
+  const timedOut = await runtime.run(task, { timeoutMs: 20 });
+  const retried = await runtime.run<string>({ ...task, taskId: "timeout-2" }, { timeoutMs: 100 });
+
+  assert.equal(timedOut.status, "timed_out");
+  assert.equal(observedAbort, true);
+  assert.equal(retried.status, "succeeded");
+  assert.equal(retried.output, "retry-ok");
+});
+
+test("abort during execution returns promptly and releases actionId", async () => {
+  const registry = new ExecutorRegistry();
+  let calls = 0;
+  registry.register("product.design", async (_input, context) => {
+    calls += 1;
+    if (calls === 1) {
+      await new Promise<void>((resolve) => context.signal?.addEventListener("abort", () => resolve(), { once: true }));
+      return "cancelled-late";
+    }
+    return "second-run";
+  });
+  const runtime = new AgentRuntime(registry);
+  const controller = new AbortController();
+  const task = { taskId: "abort-1", actionId: "abort-action", capability: "product.design" as const, input: {} };
+  const pending = runtime.run(task, { signal: controller.signal, timeoutMs: 500 });
+  setTimeout(() => controller.abort(), 10);
+
+  const cancelled = await pending;
+  const retried = await runtime.run<string>({ ...task, taskId: "abort-2" }, { timeoutMs: 100 });
+
+  assert.equal(cancelled.status, "cancelled");
+  assert.equal(retried.status, "succeeded");
+  assert.equal(retried.output, "second-run");
 });

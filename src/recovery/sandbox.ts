@@ -13,7 +13,8 @@ export interface SandboxReceipt {
   effect: SandboxEffect;
   inputHash: string;
   outputHash: string;
-  status: "completed";
+  status: "completed" | "failed";
+  error?: string;
 }
 
 export interface RecoveryCheckpoint {
@@ -51,11 +52,18 @@ function digest(value: unknown): string {
   return createHash("sha256").update(stable(value)).digest("hex");
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? String(error.message) : String(error);
+}
+
 export class DeterministicSandbox {
   readonly #receipts: SandboxReceipt[] = [];
   readonly #completed = new Map<string, SandboxReceipt>();
 
-  execute(step: SandboxStep, executor: (input: unknown) => unknown): SandboxReceipt {
+  async execute(
+    step: SandboxStep,
+    executor: (input: unknown) => unknown | Promise<unknown>,
+  ): Promise<SandboxReceipt> {
     if (step.stepId.trim().length === 0) throw new Error("stepId cannot be empty.");
     const inputHash = digest(step.input);
     const completed = this.#completed.get(step.stepId);
@@ -66,17 +74,31 @@ export class DeterministicSandbox {
       return { ...completed };
     }
 
-    const output = executor(structuredClone(step.input));
-    const receipt: SandboxReceipt = {
-      stepId: step.stepId,
-      effect: step.effect,
-      inputHash,
-      outputHash: digest(output),
-      status: "completed",
-    };
-    this.#receipts.push(receipt);
-    this.#completed.set(step.stepId, receipt);
-    return { ...receipt };
+    try {
+      const output = await executor(structuredClone(step.input));
+      const receipt: SandboxReceipt = {
+        stepId: step.stepId,
+        effect: step.effect,
+        inputHash,
+        outputHash: digest(output),
+        status: "completed",
+      };
+      this.#receipts.push(receipt);
+      this.#completed.set(step.stepId, receipt);
+      return { ...receipt };
+    } catch (error) {
+      const message = errorMessage(error);
+      const receipt: SandboxReceipt = {
+        stepId: step.stepId,
+        effect: step.effect,
+        inputHash,
+        outputHash: digest({ error: message }),
+        status: "failed",
+        error: message,
+      };
+      this.#receipts.push(receipt);
+      return { ...receipt };
+    }
   }
 
   checkpoint(runId: string, createdAt = new Date().toISOString()): RecoveryCheckpoint {
@@ -97,15 +119,22 @@ export class DeterministicSandbox {
     const expected = digest({ runId: checkpoint.runId, createdAt: checkpoint.createdAt, receipts: checkpoint.receipts });
     if (expected !== checkpoint.chainHash) throw new Error("Recovery checkpoint integrity verification failed.");
 
-    const seen = new Set<string>();
+    const seenCompleted = new Set<string>();
     for (const receipt of checkpoint.receipts) {
       if (receipt.stepId.trim().length === 0) throw new Error("Recovery checkpoint contains an empty stepId.");
-      if (seen.has(receipt.stepId)) throw new Error("Recovery checkpoint contains duplicate step IDs.");
+      if (receipt.status === "completed") {
+        if (seenCompleted.has(receipt.stepId)) throw new Error("Recovery checkpoint contains duplicate completed step IDs.");
+        seenCompleted.add(receipt.stepId);
+      }
       if (!/^[a-f0-9]{64}$/.test(receipt.inputHash) || !/^[a-f0-9]{64}$/.test(receipt.outputHash)) {
         throw new Error("Recovery checkpoint contains an invalid receipt hash.");
       }
-      if (receipt.status !== "completed") throw new Error("Recovery checkpoint contains an unsupported receipt status.");
-      seen.add(receipt.stepId);
+      if (receipt.status !== "completed" && receipt.status !== "failed") {
+        throw new Error("Recovery checkpoint contains an unsupported receipt status.");
+      }
+      if (receipt.status === "failed" && (typeof receipt.error !== "string" || receipt.error.length === 0)) {
+        throw new Error("Recovery checkpoint failed receipt must contain an error message.");
+      }
     }
 
     this.#receipts.length = 0;
@@ -113,7 +142,7 @@ export class DeterministicSandbox {
     for (const receipt of checkpoint.receipts) {
       const copy = { ...receipt };
       this.#receipts.push(copy);
-      this.#completed.set(receipt.stepId, copy);
+      if (receipt.status === "completed") this.#completed.set(receipt.stepId, copy);
     }
   }
 

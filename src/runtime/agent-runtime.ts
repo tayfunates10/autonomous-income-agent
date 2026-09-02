@@ -7,7 +7,58 @@ import { ExecutorRegistry, TransientExecutionError } from "./executor-registry.j
 import type { AgentTask, TaskRunOptions, TaskRunResult } from "./task.js";
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  return error instanceof Error ? String(error.message) : String(error);
+}
+
+class TaskCancelledError extends Error {
+  constructor() {
+    super("Task was cancelled during execution.");
+    this.name = "TaskCancelledError";
+  }
+}
+
+class TaskTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`Task execution timed out after ${timeoutMs} ms.`);
+    this.name = "TaskTimeoutError";
+  }
+}
+
+async function executeWithControls<T>(
+  executor: (signal: AbortSignal) => Promise<T>,
+  signal: AbortSignal | undefined,
+  timeoutMs: number | undefined,
+): Promise<T> {
+  const controller = new AbortController();
+  let timeout: NodeJS.Timeout | undefined;
+  let removeAbortListener: (() => void) | undefined;
+
+  const controls = new Promise<never>((_, reject) => {
+    if (signal) {
+      const onAbort = () => {
+        reject(new TaskCancelledError());
+        controller.abort(signal.reason);
+      };
+      signal.addEventListener("abort", onAbort, { once: true });
+      removeAbortListener = () => signal.removeEventListener("abort", onAbort);
+    }
+
+    if (timeoutMs !== undefined) {
+      timeout = setTimeout(() => {
+        const error = new TaskTimeoutError(timeoutMs);
+        reject(error);
+        controller.abort(error);
+      }, timeoutMs);
+    }
+  });
+
+  try {
+    if (signal?.aborted) throw new TaskCancelledError();
+    return await Promise.race([executor(controller.signal), controls]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+    removeAbortListener?.();
+  }
 }
 
 export interface AgentRuntimeSecurityOptions {
@@ -48,6 +99,10 @@ export class AgentRuntime {
   }
 
   async run<TOutput = unknown>(task: AgentTask, options: TaskRunOptions = {}): Promise<TaskRunResult<TOutput>> {
+    if (options.timeoutMs !== undefined && (!Number.isSafeInteger(options.timeoutMs) || options.timeoutMs <= 0)) {
+      throw new Error("timeoutMs must be a positive safe integer when provided.");
+    }
+
     try {
       this.#killSwitch.assertOperational();
     } catch (error) {
@@ -154,26 +209,16 @@ export class AgentRuntime {
       while (attempts <= maxRetries) {
         attempts += 1;
         try {
-          const output = await executor(task.input, {
-            taskId: task.taskId,
-            actionId: task.actionId,
-            attempt: attempts,
-            ...(options.signal === undefined ? {} : { signal: options.signal }),
-          });
-
-          if (options.signal?.aborted) {
-            const error = "Task was cancelled during execution.";
-            this.#record(task, authorization, error, authorization.approvalId, options.now);
-            return {
+          const output = await executeWithControls(
+            (signal) => executor(task.input, {
               taskId: task.taskId,
               actionId: task.actionId,
-              status: "cancelled",
-              attempts,
-              policy: authorization,
-              audit: this.getAuditTrail(),
-              error,
-            };
-          }
+              attempt: attempts,
+              signal,
+            }) as Promise<TOutput>,
+            options.signal,
+            options.timeoutMs,
+          );
 
           this.#completedActionIds.add(task.actionId);
           this.#record(task, authorization, `Execution succeeded after ${attempts} attempt(s).`, authorization.approvalId, options.now);
@@ -184,16 +229,30 @@ export class AgentRuntime {
             attempts,
             policy: authorization,
             audit: this.getAuditTrail(),
-            output: output as TOutput,
+            output,
           };
         } catch (error) {
-          if (options.signal?.aborted) {
+          if (error instanceof TaskCancelledError || options.signal?.aborted) {
             const message = "Task was cancelled during execution.";
             this.#record(task, authorization, message, authorization.approvalId, options.now);
             return {
               taskId: task.taskId,
               actionId: task.actionId,
               status: "cancelled",
+              attempts,
+              policy: authorization,
+              audit: this.getAuditTrail(),
+              error: message,
+            };
+          }
+
+          if (error instanceof TaskTimeoutError) {
+            const message = error.message;
+            this.#record(task, authorization, message, authorization.approvalId, options.now);
+            return {
+              taskId: task.taskId,
+              actionId: task.actionId,
+              status: "timed_out",
               attempts,
               policy: authorization,
               audit: this.getAuditTrail(),
