@@ -103,10 +103,12 @@ test("gateway refuses financial and identity capabilities entirely", async () =>
 });
 
 test("gateway enforces rate and payload budgets", async () => {
+  let now = 1_000;
   const gateway = new IntegrationGateway(new FakeTransport(), new AuthorizedChannelRegistry(), {
     maxRequestsPerWindow: 1,
     windowMs: 1_000,
     maxRequestBodyBytes: 3,
+    clock: () => now,
   });
 
   await gateway.execute({
@@ -114,19 +116,21 @@ test("gateway enforces rate and payload budgets", async () => {
     capability: "research.public_web",
     url: "https://example.com/a",
     method: "GET",
-  }, 1_000);
+  }, 999_999);
 
+  now = 1_500;
   await assert.rejects(() => gateway.execute({
     actionId: "r2",
     capability: "research.public_web",
     url: "https://example.com/b",
     method: "GET",
-  }, 1_500));
+  }, 2_001));
 
+  now = 2_001;
   await gateway.execute({
     actionId: "r3",
     capability: "research.public_web",
     url: "https://example.com/c",
     method: "GET",
-  }, 2_001);
+  }, -999_999);
 });
