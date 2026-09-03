@@ -67,12 +67,13 @@ test("unsupported opportunity is discarded", () => {
   assert.equal(result.score, 0);
 });
 
-test("hard legal risk ceiling overrides otherwise strong economics", () => {
+test("hard legal risk ceiling overrides otherwise strong economics without erasing score", () => {
   const candidate = strongCandidate("risky");
   candidate.metrics.legalRisk = 0.85;
   const result = scoreOpportunity(candidate);
   assert.equal(result.decision, "discard");
-  assert.equal(result.score, 0);
+  assert.ok(result.score > 0);
+  assert.match(result.blockedByHardCeiling ?? "", /hard ceiling/);
 });
 
 test("engine ranks, stores evidence provenance and builds validation plan", () => {
